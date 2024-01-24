@@ -35,6 +35,7 @@ contract DynamicPetNFT is ERC721URIStorage {
     mapping(uint256 => PetGrowth) public petGrowths;
     mapping(address => Owner) public ownerActivities;
     mapping(uint256 => address) private _owners;
+    mapping(uint256 => uint256) public nftPrices;
     IERC20 public foodToken; // 假设的ERC20代币作为“食物”
 
     constructor(address _foodTokenAddress) ERC721("DynamicPet", "DPET") {
@@ -225,6 +226,30 @@ contract DynamicPetNFT is ERC721URIStorage {
     function getPetAction(uint256 tokenId) public view returns (string memory) {
         require(_exists(tokenId), "Pet does not exist");
         return pets[tokenId].action;
+    }
+
+    // 设置NFT价格的函数
+    function setNFTPrice(uint256 tokenId, uint256 price) public {
+        require(_exists(tokenId), "NFT does not exist");
+        require(_owners[tokenId] == msg.sender, "Only owner can set price");
+        nftPrices[tokenId] = price;
+    }
+
+    // 买家支付ETH并购买NFT的函数
+    function buyNFT(uint256 tokenId) public payable {
+        address seller = _owners[tokenId];
+        require(msg.sender != seller, "Seller cannot buy their own NFT");
+        require(_exists(tokenId), "NFT does not exist");
+        uint256 price = nftPrices[tokenId];
+
+        // 将ETH转给卖家
+        payable(seller).transfer(msg.value);
+
+        // 将NFT的所有权转给买家
+        _transfer(seller, msg.sender, tokenId);
+
+        _owners[tokenId] = msg.sender;
+
     }
 
     
