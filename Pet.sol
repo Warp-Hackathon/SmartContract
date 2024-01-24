@@ -8,11 +8,20 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DynamicPetNFT is ERC721URIStorage {
     struct Pet {
-        uint256 growthLevel; //成长等级
         string color; // 颜色
         uint256 bodySize; // 体型
         string outfit; // 服装
         string action; // 动作
+    }
+
+    struct Owner{
+        address owner; // 主人地址
+        uint256 calculate; // 活跃度
+    }
+
+    struct PetGrowth {
+        uint256 lastGrowthTime; // 上次成长的时间
+        uint256 growthDegree; // 成长程度，范围0~100
     }
 
     event Birth(
@@ -23,6 +32,8 @@ contract DynamicPetNFT is ERC721URIStorage {
 
     uint256 private nextTokenId;
     mapping(uint256 => Pet) public pets;
+    mapping(uint256 => PetGrowth) public petGrowths;
+    mapping(address => Owner) public ownerActivities;
     mapping(uint256 => address) private _owners;
     IERC20 public foodToken; // 假设的ERC20代币作为“食物”
 
@@ -40,8 +51,6 @@ contract DynamicPetNFT is ERC721URIStorage {
     bytes memory jsonBytes = abi.encodePacked(
         '{"color": "',
         pet.color,
-        '", "growthLevel": ',
-        Strings.toString(pet.growthLevel),
         '", "bodySize": ',
         Strings.toString(pet.bodySize),
         '", "outfit": "',
@@ -68,39 +77,116 @@ contract DynamicPetNFT is ERC721URIStorage {
         _mint(to, tokenId);
 
         // 生成随机的宠物样式随机
-        uint256 growthLevel = 0;
         string memory color = generateRandomColor();
         uint256 bodySize = 1;
         string memory outfit = generateRandomOutfit();
         string memory action = generateRandomAction();
-        pets[tokenId] = Pet(growthLevel, color, bodySize, outfit, action);
+        pets[tokenId] = Pet(color, bodySize, outfit, action);
 
         // 构建 tokenURI（可以使用 baseURI 或包含完整的元数据信息）
-        Pet memory petData = pets[tokenId];
-        string memory tokenURI = generateTokenURI(tokenId, petData);
+        Pet memory pet = pets[tokenId];
+        string memory tokenURI = generateTokenURI(tokenId, pet);
         _setTokenURI(tokenId, tokenURI);
 
         emit Birth(to, tokenId, block.timestamp);
         return tokenId;
     }
 
-    // 自定义函数来生成随机颜色、服装和动作
-    function generateRandomColor() internal pure returns (string memory) {
-        // 实现生成随机颜色的逻辑
-        // 这里可以使用随机数或其他方法来生成颜色
-        // 返回生成的颜色字符串
+    // 预设的颜色、动作和服装
+    string[] private colors = ["Red", "Blue", "Green", "Yellow", "Purple"];
+    string[] private actions = ["Jumping", "Running", "Sleeping", "Eating", "Playing"];
+    string[] private outfits = ["Hat", "Scarf", "Glasses", "Shirt", "Pants"];
+
+    // 生成随机颜色
+    function generateRandomColor() internal view returns (string memory) {
+        uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % colors.length;
+        return colors[rand];
     }
 
-    function generateRandomOutfit() internal pure returns (string memory) {
-        // 实现生成随机服装的逻辑
-        // 这里可以使用随机数或其他方法来生成服装
-        // 返回生成的服装字符串
+    // 生成随机动作
+    function generateRandomAction() internal view returns (string memory) {
+        uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % actions.length;
+        return actions[rand];
     }
 
-    function generateRandomAction() internal pure returns (string memory) {
-        // 实现生成随机动作的逻辑
-        // 这里可以使用随机数或其他方法来生成动作
-        // 返回生成的动作字符串
+    // 生成随机服装
+    function generateRandomOutfit() internal view returns (string memory) {
+        uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % outfits.length;
+        return outfits[rand];
+    }
+
+    // 成长函数
+    function chengzhang(uint256 tokenId) private {
+        Pet memory pet = pets[tokenId];
+        PetGrowth memory growth = petGrowths[tokenId];
+
+        uint256 chengzhangtime = block.timestamp - growth.lastGrowthTime;
+        uint256 activity = getUserActivity(msg.sender); // 获取用户活跃度
+        uint256 gailv = getRandomNumber();
+
+        if (gailv <= 30) {
+            colorchange(tokenId);
+        } else if (gailv <= 50) {
+            bodychange(tokenId);
+        } else if (gailv <= 70) {
+            outfitchange(tokenId);
+        } else {
+            actionchange(tokenId);
+        }
+
+        // 更新成长时间和成长度
+        growth.lastGrowthTime = block.timestamp;
+        growth.growthDegree += 1; // 或根据其他逻辑更新成长度
+
+        string memory tokenURI = generateTokenURI(tokenId, pet);
+        _setTokenURI(tokenId, tokenURI);
+    }
+
+    function updateActivity() public {
+        Owner memory owner = ownerActivities[msg.sender];
+        owner.owner = msg.sender;
+        owner.calculate += 1; // 增加活跃度计数
+    }
+
+    // 获取用户活跃度的函数（需要实现）
+    function getUserActivity(address user) private view returns (uint256) {
+        // 根据用户地址返回活跃度
+        Owner memory owner = ownerActivities[user];
+        return owner.calculate;
+    }
+
+    // 修改颜色的函数
+    function colorchange(uint256 tokenId) private {
+        // 颜色改变的逻辑
+        string memory color = generateRandomColor();
+        pets[tokenId].color = color;
+    }
+
+    // 修改体型的函数
+    function bodychange(uint256 tokenId) private {
+        // 体型改变的逻辑
+    }
+
+    // 修改服装的函数
+    function outfitchange(uint256 tokenId) private {
+        // 服装改变的逻辑
+        string memory outfit = generateRandomOutfit();
+        pets[tokenId].outfit = outfit;
+    }
+
+    // 修改动作的函数
+    function actionchange(uint256 tokenId) private {
+        // 动作改变的逻辑
+        string memory action = generateRandomAction();
+        pets[tokenId].action = action;
+    }
+
+    // 随机数生成函数
+    uint256 private seed;
+    function getRandomNumber() private returns (uint256) {
+        uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp, seed)));
+        seed = randomNumber;
+        return (randomNumber % 100); // 返回 0 到 99 之间的数
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
@@ -113,7 +199,31 @@ contract DynamicPetNFT is ERC721URIStorage {
             foodToken.transferFrom(msg.sender, address(this), amount),
             "Transfer failed"
         );
-        // 应该怎么解决喂食
+        chengzhang(tokenId);
+        
+    }
+    // 获取宠物颜色的函数
+    function getPetColor(uint256 tokenId) public view returns (string memory) {
+        require(_exists(tokenId), "Pet does not exist");
+        return pets[tokenId].color;
+    }
+
+    // 获取宠物体型的函数
+    function getPetBodySize(uint256 tokenId) public view returns (uint256) {
+        require(_exists(tokenId), "Pet does not exist");
+        return pets[tokenId].bodySize;
+    }
+
+    // 获取宠物服装的函数
+    function getPetOutfit(uint256 tokenId) public view returns (string memory) {
+        require(_exists(tokenId), "Pet does not exist");
+        return pets[tokenId].outfit;
+    }
+
+    // 获取宠物动作的函数
+    function getPetAction(uint256 tokenId) public view returns (string memory) {
+        require(_exists(tokenId), "Pet does not exist");
+        return pets[tokenId].action;
     }
 
     
