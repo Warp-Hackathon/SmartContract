@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.23;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -75,6 +75,7 @@ contract DynamicPetNFT is ERC721URIStorage {
     function mintPet(address to) public returns (uint256) {
         uint256 tokenId = nextTokenId++;
         _mint(to, tokenId);
+        _owners[tokenId] = to;
 
         // 生成随机的宠物样式随机
         string memory color = generateRandomColor();
