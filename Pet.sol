@@ -236,20 +236,20 @@ contract DynamicPetNFT is ERC721URIStorage {
     }
 
     // 买家支付ETH并购买NFT的函数
-    function buyNFT(uint256 tokenId) public payable {
-        address seller = _owners[tokenId];
-        require(msg.sender != seller, "Seller cannot buy their own NFT");
-        require(_exists(tokenId), "NFT does not exist");
-        uint256 price = nftPrices[tokenId];
-
-        // 将ETH转给卖家
-        payable(seller).transfer(msg.value);
-
-        // 将NFT的所有权转给买家
-        _transfer(seller, msg.sender, tokenId);
-
-        _owners[tokenId] = msg.sender;
-
+    function buyNFT(uint256 tokenId) public payable { 
+        address seller = _owners[tokenId]; 
+        require(msg.sender != seller, "Seller cannot buy their own NFT"); 
+        require(_exists(tokenId), "NFT does not exist"); 
+        uint256 price = nftPrices[tokenId]; 
+        // 确保发送的金额等于或大于价格 
+        require(msg.value >= price, "Not enough funds sent"); 
+        // 使用send方法将资金转给卖家 
+        (bool success, ) = payable(seller).call{value: price}(""); 
+        require(success, "Transfer to seller failed"); 
+        // 将NFT所有权转移到买家 
+        _transfer(seller, msg.sender, tokenId); 
+        // 在映射中更新所有者 
+        _owners[tokenId] = msg.sender; 
     }
 
     
